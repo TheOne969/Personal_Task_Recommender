@@ -7,8 +7,8 @@ import pandas as pd
 # ──────────────────────────────
 # CONFIG ‒ edit as you like
 # ──────────────────────────────
-RAW_DIR      = Path(r"C:\Codes\personal_task_rec\data\raw")       # where raw_entries_*.json live
-OUT_DIR      = Path(r"C:\Codes\personal_task_rec\data\processed")   # destination for CSVs
+RAW_DIR      = Path(r"C:\Codes\Personal_Task_Recommender\data\raw")       # where raw_entries_*.json live
+OUT_DIR      = Path(r"C:\Codes\Personal_Task_Recommender\data\processed")   # destination for CSVs
 JSON_PATTERN = "raw_entries_*.json"     # glob pattern to select files
 LOCAL_TZ     = "Asia/Kolkata"          # GMT+05:30
 # ──────────────────────────────

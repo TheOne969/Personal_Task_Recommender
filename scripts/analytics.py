@@ -22,18 +22,24 @@ def load_entries(path=None):
         if not csv_files: 
             raise FileNotFoundError(f"No CSV files found in {processed_dir}")
         
-        # Use the most recent file automatically
-        path = max(csv_files, key=lambda f: f.stat().st_mtime)
-        print(f"Loading data from: {path}")
+        
 
-    df = pd.read_csv(path, parse_dates=["start"]) # stop isn't needed for analysis as we already have duration
+    df_list   = [pd.read_csv(f, parse_dates=["start"]) for f in csv_files] # stop isn't needed for analysis as we already have duration
+
+    df=  pd.concat(df_list, ignore_index=True)
+    df.drop_duplicates(subset="id", inplace=True)
+    df.sort_values("start", inplace=True)
 
     if "duration_h" not in df.columns:
         print("!!! duration_h column missing - something's wrong")
         return df
     
     project_mappings = load_project_mappings()
-    df["project_id"] = df["project_id"].astype(str) # making sure that project id is a string.
+
+     # Fix: Remove .0 suffix from project_ids. This happened when pandas read NaN values and makes the whole column float.  
+    df["project_id"] = df["project_id"].astype(str).str.replace('.0', '', regex=False)
+    # making sure that project id is a string.
+    
     df["project"] = df["project_id"].map(project_mappings)
 
     # Better fallback - use project_id if mapping fails
@@ -46,13 +52,15 @@ def total_time(df):
     return df['duration_h'].sum()
 
 def time_per_day(df):
-    return (df.groupby(df["start"].dt.date)["duration_h"] # Here, the thing is, that it will return a df with start as date objects not date-time
+    """ returns a dataframe with two columns: date and time. """
+
+    return (df.groupby(df["date"])["duration_h"]
               .sum()
-              .reset_index()# Reset index converts series to a dataframe with index column now being original name which is here "start".
-              .rename(columns= {"start":"date","duration_h":"hours"})) 
+              .reset_index()# Reset index converts series to a dataframe with index column now being original name which is here "date".
+              .rename(columns= {"duration_h":"hours"})) 
 
 def time_by_project(df):
-    return (df.groupby("project")["duration_h"]  # Now uses "project" not "project_id"
+    return (df.groupby("project")["duration_h"]  
               .sum()
               .reset_index()
               .rename(columns={"duration_h": "hours"})
