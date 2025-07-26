@@ -18,7 +18,7 @@ class PathManager:
         self.goals_file = Path(os.getenv('GOALS_FILE'))
         self.tasks_file = Path(os.getenv('TASKS_FILE'))
         self.category_mapping_file = Path(os.getenv('CATEGORY_MAPPING_FILE'))
-    
+        
 
 # Create singleton instance which will be used by all whoever imports it. Also saves time of making instances.
 paths = PathManager()

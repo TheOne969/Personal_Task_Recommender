@@ -2,6 +2,9 @@
 
 import os, json, requests, datetime as dt
 from dotenv import load_dotenv
+import requests
+import json
+
 
 load_dotenv()
 
@@ -15,10 +18,34 @@ TOKEN= os.getenv("TOGGL_API_KEY")
 if not TOKEN:
     raise ValueError("TOGGL_API_KEY not found in environment variables.")
 
+def daterange(start_date, end_date):
+    """Generate all dates in range"""
+    for n in range(int((end_date - start_date).days) + 1):
+        yield start_date + dt.timedelta(n)
 
-# In your Phase 1 script (e.g., scripts/fetch_toggl.py)
-import requests
-import json
+def date_2_range(dates): 
+    range_list= []
+
+    i=0 
+    while i<len(dates): 
+        j= i+1
+        while j<len(dates): 
+            if dates[j-1] + dt.timedelta(1) != dates[j]: 
+                break
+            j+=1
+        
+        if i!= j-1:
+            range_list.append((dates[i],dates[j-1]))
+            i=j
+
+        else: 
+            range_list.append((dates[i], dates[i] + dt.timedelta(1)))
+            i+=1
+
+    
+    return range_list
+        
+
 
 def fetch_project_mappings(api_token=TOKEN,dir=DATA_DIR):
     """Fetch project_id -> project_name mappings from Toggl"""
@@ -36,7 +63,6 @@ def fetch_project_mappings(api_token=TOKEN,dir=DATA_DIR):
     with open(os.path.join(dir,"project_mappings.json"), "w") as f:
         json.dump(mapping, f, indent=2)
     
-
 def fetch_time_entries(api_token=TOKEN,since=SINCE,today=TODAY):
 
 
@@ -65,9 +91,34 @@ def fetch_all_entries_with_pagination(start_date, end_date, max_entries_per_requ
     Fetch all entries by automatically splitting date ranges when hitting limits
     """
     all_entries = []
-    current_start = start_date
+
+    # Filtering out the dates already present in the RAW_DIR.
+    existing_dates= os.listdir(RAW_DIR)
+    existing_dates= [item 
+                     for x in existing_dates
+                     for item in (x.split(".json")[0].split("raw_entries_")[1].split("_to_"))# split operation is from left to right. So, json will be received first. 
+                    ]
     
-    while current_start < end_date:
+    existing_dates= [dt.datetime.strptime(
+    x, 
+    '%Y-%m-%d'
+).date() for x in existing_dates] 
+
+    existing_dates_set= set(date for date in existing_dates if start_date<=date<=end_date) # The list comprehension inside is just for optimization. You could also just do set(existing_dates)
+    all_dates_needed= set(daterange(start_date,end_date))
+    missing_dates= all_dates_needed-existing_dates_set
+
+    if not missing_dates:
+        print("All data already exists!")
+        return all_entries 
+
+    start_date= min(missing_dates)
+    end_date= max(missing_dates)
+    
+
+    current_start = start_date
+      
+    while current_start <= end_date:
         print(f"Fetching from {current_start} to {end_date}")
         
         
@@ -84,11 +135,24 @@ def fetch_all_entries_with_pagination(start_date, end_date, max_entries_per_requ
         
         # Get the last entry's date and continue from the next day
         last_entry_start = entries[-1]['start'][:10]  # Get date part
-        current_start = dt.datetime.strptime(last_entry_start, '%Y-%m-%d').date() + dt.timedelta(days=1)
+        current_start = (dt.datetime.strptime(last_entry_start, '%Y-%m-%d').date() # we doing this coz dt.date takes separate integer values.
+        + dt.timedelta(days=1))
     
-    return all_entries
+    missing_dates_ranges= date_2_range(sorted(missing_dates))
 
-def write_data(data,raw_dir=RAW_DIR,since=None,today=None): 
+    for (start,end) in missing_dates_ranges: 
+
+        data= [x for x in all_entries if start<=dt.datetime.strptime(x["start"][:10], '%Y-%m-%d').date()<=end]
+        write_data(data,since=start,today=end)
+
+
+
+def write_data(data: list,raw_dir=RAW_DIR,since=None,today=None): 
+
+    if not since or not today: 
+        since= min(dt.datetime.strptime(x["start"][:10], '%Y-%m-%d').date() for x in data)
+        today= max(dt.datetime.strptime(x["start"][:10], '%Y-%m-%d').date() for x in data)
+        
     outfile= os.path.join(raw_dir,f"raw_entries_{since}_to_{today}.json")
 
     with open(outfile,"w", encoding="utf-8") as file: 
@@ -97,7 +161,7 @@ def write_data(data,raw_dir=RAW_DIR,since=None,today=None):
     print(f"Saved {len(data)} entries in {outfile}")
 
 
-start_date = dt.date(2025, 7,15)  
-end_date = dt.date(2025, 7, 18)     
-entries= fetch_all_entries_with_pagination(start_date,end_date)
-write_data(entries,since=start_date,today=end_date)
+start_date = dt.date(2025, 7,18)  
+end_date = dt.date(2025, 7, 21)     
+fetch_all_entries_with_pagination(start_date,end_date)
+

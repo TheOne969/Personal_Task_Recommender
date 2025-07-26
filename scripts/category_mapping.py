@@ -29,8 +29,14 @@ class CategoryMapper:
         """Map a Toggl entry to a goal category based on task description"""
         
         # Clean up the description
-        task_description = (description or '').lower().strip()
-        project_name = (project or '').lower().strip()
+        task_description = str(description or '').lower().strip()
+        project_name = str(project or '').lower().strip()
+    
+        # Clean up str(NaN) → 'nan' case
+        if task_description == 'nan':
+            task_description = ''
+        if project_name == 'nan':
+            project_name = ''
         
         # Strategy 1: Exact task description match
         if task_description in self.task_to_category:

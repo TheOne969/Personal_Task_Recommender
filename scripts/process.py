@@ -30,7 +30,7 @@ def _list_to_string(v: list | None) -> str:
     return ";".join(map(str, v)) if isinstance(v, list) and v else "" #using map to make sure that numerical tags get converted to string
 
 
-def process_file(json_path: Path) -> Path | None:
+def process_file(json_path: Path,out_dir= OUT_DIR) -> Path | None:
     """Convert one raw JSON file → processed CSV file."""
     entries = json.loads(json_path.read_text())
 
@@ -60,9 +60,9 @@ def process_file(json_path: Path) -> Path | None:
     df["tag_string"] = df["tags"].apply(_list_to_string)
     # ────────────────────────────────────────────────────────────────
 
-
+    
     csv_name = json_path.name.replace("raw_entries", "toggl_entries").replace(".json", ".csv")
-    csv_path = OUT_DIR / csv_name
+    csv_path = out_dir / csv_name
     df.to_csv(csv_path, index=False) # index= Decides whether the first column will be index or not. 
     # Also to_csv overwrites the existing path if present. 
 
