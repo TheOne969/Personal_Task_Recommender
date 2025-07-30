@@ -40,8 +40,6 @@ def init_goal_system():
         st.error(f"Goal system not configured: {e}")
         return None, None, None
 
-
-
 # ---- Load & cache data ----
 @st.cache_data
 def load():

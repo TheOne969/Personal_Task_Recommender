@@ -2,3 +2,7 @@
 .json
 .csv
 .ipynb
+category_mapping.json
+goals.json
+tasks.json
+config.json

@@ -3,6 +3,7 @@ from path_manager import paths
 from typing import Optional, Dict, List
 
 class CategoryMapper:
+    
     def __init__(self, mapping_path: str = None):
         mapping_path = mapping_path or paths.category_mapping_file
         

@@ -45,8 +45,6 @@ def date_2_range(dates):
     
     return range_list
         
-
-
 def fetch_project_mappings(api_token=TOKEN,dir=DATA_DIR):
     """Fetch project_id -> project_name mappings from Toggl"""
     url = "https://api.track.toggl.com/api/v9/me/projects"
@@ -144,8 +142,6 @@ def fetch_all_entries_with_pagination(start_date, end_date, max_entries_per_requ
 
         data= [x for x in all_entries if start<=dt.datetime.strptime(x["start"][:10], '%Y-%m-%d').date()<=end]
         write_data(data,since=start,today=end)
-
-
 
 def write_data(data: list,raw_dir=RAW_DIR,since=None,today=None): 
 

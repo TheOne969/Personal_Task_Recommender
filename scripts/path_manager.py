@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-class PathManager:
+class PathManager: # Question: Why not create this as a dataclass?
     def __init__(self):
         # Load environment variables
         load_dotenv()
