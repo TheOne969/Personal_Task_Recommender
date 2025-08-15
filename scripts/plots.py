@@ -42,7 +42,7 @@ def pie_by_project(proj_df):
 # 3. Line chart – 7-day rolling average
 def rolling_avg_line(daily_df):
 
-    d = daily_df.sort_values("date").copy()
+    d = daily_df.sort_values("date")
     d["rolling"] = d["hours"].rolling(7, min_periods=1).mean()
 
     fig, ax = plt.subplots(figsize=(10, 4))

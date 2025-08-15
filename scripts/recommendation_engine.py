@@ -1,9 +1,14 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
 from task_manager import TaskManager
 from weekly_goals import WeeklyGoalTracker
+from path_manager import paths
+
+import os, joblib
+MODEL_PATH = os.path.join(paths.data_dir, "completion_model.joblib")
 
 @dataclass # Basically a template for classes with storing data like this. So, you are kind of calling a function from a library.
 class TaskRecommendation:
@@ -18,7 +23,15 @@ class RecommendationEngine:
     def __init__(self, task_manager: TaskManager, goal_tracker: WeeklyGoalTracker):
         self.task_manager = task_manager
         self.goal_tracker = goal_tracker
-        
+        self.completion_model = (
+    joblib.load(MODEL_PATH) if os.path.exists(MODEL_PATH) else None
+)
+        self._binary_model = (
+            self.completion_model is not None
+            and hasattr(self.completion_model, "classes_")
+            and len(self.completion_model.classes_) == 2
+    )
+
         # Scoring weights (tunable)
         self.weights = {
             'performance': 0.4,     # How well you're hitting daily targets
@@ -29,6 +42,14 @@ class RecommendationEngine:
         self.daily_target_hours = 6.0  # Configurable daily target
         self.performance_window_days = 3  # Look at last 3 days
     
+    def _safe_prob(self, X):
+        """
+        Return P(class = 1). If the model was trained on just one class,
+        scikit-learn outputs a single column; in that case return zeros.
+        """
+        proba = self.completion_model.predict_proba(X)
+        return proba[:, 1] if proba.shape[1] == 2 else np.zeros(len(X))
+
     def calculate_performance_score(self, df: pd.DataFrame) -> float:
         """
         Calculate performance score based on recent daily hours vs target
@@ -96,54 +117,72 @@ class RecommendationEngine:
             goal_scores[category] = min(1.0, base_score * priority_multiplier)
         
         return goal_scores
-    
-    def calculate_task_priority_scores(self, df: pd.DataFrame) -> List[TaskRecommendation]:
+
+    def calculate_task_priority_scores(self, df) -> List[TaskRecommendation]:
         """
-        Calculate priority scores for all available tasks
+        Compute a priority score for every task.
+        • If a *binary* completion model exists, weight the score by its probability.
+        • If the model is untrained (single-class) or missing, fall back to the
+        pure rule-based score so nothing is forced to zero.
         """
-        # Get performance and goal scores
-        performance_score = self.calculate_performance_score(df)
+        perf_score  = self.calculate_performance_score(df)
         goal_scores = self.calculate_weekly_goal_score(df)
-        
+        now         = datetime.now()
+
         recommendations = []
-        
-        for task_name, task_info in self.task_manager.get_all_tasks().items():
-            category = task_info['category']
-            difficulty = int(task_info['difficulty'])
-            duration = task_info.get('estimated_duration', 1.0)
-            
-            # Get goal score for this category (default to 0.5 if no goal)
+
+        for task_name, info in self.task_manager.get_all_tasks().items():
+            category   = info["category"]
+            difficulty = int(info["difficulty"])
+            duration   = info.get("estimated_duration", 1.0)
+
             goal_score = goal_scores.get(category, 0.5)
-            
-            # Difficulty adjustment (easier tasks get slight boost when low energy)
-            difficulty_adjustment = 1.0
-            if performance_score < 0.5:  # Low performance = prefer easier tasks
-                difficulty_adjustment = 1.3 - (difficulty * 0.1)
-            
-            # Calculate weighted priority score
-            priority_score = (
-                self.weights['performance'] * performance_score +
-                self.weights['goal_progress'] * goal_score
-            ) * difficulty_adjustment
-            
-            # Generate reasoning
+
+            # ── base rule-based score ──────────────────────────────────────
+            diff_adj = 1.0
+            if perf_score < 0.5:
+                diff_adj = 1.3 - 0.1 * difficulty
+
+            base_score = (
+                self.weights["performance"]   * perf_score +
+                self.weights["goal_progress"] * goal_score
+            ) * diff_adj
+
+            # ── ML probability (only if model predicts TWO classes) ────────
+            prob_used = False
+            if self.completion_model:
+                proba = self.completion_model.predict_proba(
+                    [[perf_score, now.hour, difficulty, goal_score]]
+                )
+                if proba.shape[1] == 2:                     # true binary model
+                    prob = proba[0, 1]
+                    base_score *= prob                      # weight by P(completed)
+                    prob_used = True
+
+            # score & reasoning
+            priority_score = base_score
             reasoning = self._generate_reasoning(
-                performance_score, goal_score, category, difficulty, duration
+                perf_score, goal_score, category, difficulty, duration
             )
-            
-            recommendations.append(TaskRecommendation(
-                task_name=task_name,
-                category=category,
-                difficulty=difficulty,
-                estimated_duration=duration,
-                priority_score=priority_score,
-                reasoning=reasoning
-            ))
-        
-        # Sort by priority score (highest first)
-        recommendations.sort(key=lambda x: x.priority_score, reverse=True)
+            if prob_used:
+                reasoning += f" • {prob:.0%} completion likelihood"
+            else:
+                reasoning += " • model not trained yet"
+
+            recommendations.append(
+                TaskRecommendation(
+                    task_name          = task_name,
+                    category           = category,
+                    difficulty         = difficulty,
+                    estimated_duration = duration,
+                    priority_score     = priority_score,
+                    reasoning          = reasoning,
+                )
+            )
+
+        recommendations.sort(key=lambda r: r.priority_score, reverse=True)
         return recommendations
-    
+
     def _generate_reasoning(self, perf_score: float, goal_score: float, 
                           category: str, difficulty: int, duration: float) -> str:
         """Generate human-readable reasoning for the recommendation"""
