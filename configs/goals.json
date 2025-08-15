@@ -1,0 +1,25 @@
+{
+    "weekly_goals": {
+        "Writing": {
+            "target_hours": 8.0,
+            "priority": "medium"
+        },
+        "Coding": {
+            "target_hours": 12.0,
+            "priority": "medium"
+        },
+        "Study": {
+            "target_hours": 6.0,
+            "priority": "medium"
+        },
+        "Wellness": {
+            "target_hours": 5.0,
+            "priority": "high"
+        },
+        "Admin": {
+            "target_hours": 1.0,
+            "priority": "low"
+        }
+    },
+    "week_start_day": "monday"
+}
