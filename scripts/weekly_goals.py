@@ -31,7 +31,7 @@ class WeeklyGoalTracker:
         week_df = df[(df['date'] >= week_start) & (df['date'] <= week_end)]
         
         # Add category column using mapper
-        week_df['category'] = week_df.apply(self.category_mapper.get_category_for_row, axis=1)
+        week_df.loc[:,'category'] = week_df.apply(self.category_mapper.get_category_for_row, axis=1) #.loc tells pandas unambigiously that the original dataframe will change, preventing unnecessary warnings. ':' is basically referring to all rows. 
         # axis = 0 means go column wise and 1 go row wise. 
         
         progress = {}

@@ -1,50 +1,46 @@
-import sys
+# streamlit_app.py
+import sys, os, subprocess
 from pathlib import Path
-import pandas as pd
 from datetime import datetime, timedelta
 
-# Add project root to Python path
+import streamlit as st
+import pandas as pd
+
+# ─── add project root ─────────────────────────────────────────────────────────
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "scripts"))
 
-import streamlit as st
-
-
-from scripts.analytics import (
-    load_entries, total_time, time_per_day, time_by_project
-)
-from scripts.plots import bar_hours_per_day, pie_by_project, rolling_avg_line
+# ─── third-party & local imports ──────────────────────────────────────────────
+from scripts.analytics import load_entries, total_time, time_per_day, time_by_project
+from scripts.plots     import bar_hours_per_day, pie_by_project, rolling_avg_line
 from scripts.fetch_toggl import fetch_all_entries_with_pagination
-from scripts.process import process_file
+from scripts.process      import process_file
 
-from scripts.weekly_goals import WeeklyGoalTracker
-from scripts.task_manager import TaskManager
-from scripts.category_mapping import CategoryMapper
+from scripts.weekly_goals       import WeeklyGoalTracker
+from scripts.task_manager       import TaskManager
+from scripts.category_mapping   import CategoryMapper
 from scripts.recommendation_engine import RecommendationEngine
+from scripts.path_manager       import paths
 
-from scripts.path_manager import paths
+MODEL_PATH = paths.data_dir / "completion_model.joblib"   # ← NEW
 
 st.set_page_config(page_title="Time Usage Dashboard", layout="wide")
 
-
+# ──────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
 def init_goal_system():
-    """Initialize goal tracking components - cached so they persist"""
     try:
-        goal_tracker = WeeklyGoalTracker()
-        task_manager = TaskManager()
-        category_mapper = CategoryMapper()
-        return goal_tracker, task_manager, category_mapper
+        return WeeklyGoalTracker(), TaskManager(), CategoryMapper()
     except Exception as e:
         st.error(f"Goal system not configured: {e}")
         return None, None, None
 
-# ---- Load & cache data ----
 @st.cache_data
 def load():
     return load_entries()
 
+# ──────────────────────────────────────────────────────────────────────────────
 def main():
     # Load your existing data
     df = load()
@@ -137,29 +133,24 @@ def main():
 
 
     
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Analytics", "🎯 Goals & Progress", "📋 Task Manager", "🤖 Recommendations"])
+     # ---------- PAGE TABS ----------
+    
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📊 Analytics", "🎯 Goals & Progress", "📋 Task Manager", "🤖 Recommendations"]
+    )
 
-    with tab1:
-        show_analytics_tab(df)  # Your existing dashboard
-    
+    with tab1: show_analytics_tab(df)
     with tab2:
-        if goal_tracker:
-            show_goals_tab(df, goal_tracker, category_mapper)
-        else:
-            st.warning("Goals system not configured. Check your config files.")
-    
+        if goal_tracker: show_goals_tab(df, goal_tracker, category_mapper)
+        else: st.warning("Goals system not configured.")
     with tab3:
-        if task_manager:
-            show_tasks_tab(task_manager,category_mapper)
-        else:
-            st.warning("Task manager not configured. Check your config files.")
-    
+        if task_manager: show_tasks_tab(task_manager, category_mapper)
+        else: st.warning("Task manager not configured.")
     with tab4:
         if goal_tracker and task_manager:
             show_recommendations_tab(df, goal_tracker, task_manager, category_mapper)
         else:
-            st.warning("Recommendation system requires goals and tasks configuration.")
+            st.warning("Recommendations need goals & tasks configured.")
 
 def show_analytics_tab(df):
     """ First Tab """
@@ -352,74 +343,75 @@ def show_tasks_tab(task_manager,category_mapper):
                     st.success(f"Added: {task_name}")
                     st.rerun()
 
-def show_recommendations_tab(df, goal_tracker, task_manager, category_mapper):
-    """Tab 4"""
-    st.header("🤖 Task Recommendations")
-    
-    # Initialize recommendation engine
-    rec_engine = st.session_state.get('rec_engine')
+def human_time(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d %H:%M")
 
-    if rec_engine is None:
-        rec_engine = RecommendationEngine(task_manager, goal_tracker)
-        st.session_state.rec_engine = rec_engine
-    
-    # Settings sidebar
+def show_recommendations_tab(df, goal_tracker, task_manager, category_mapper):
+    """Tab 4 — now includes model status & retrain button"""
+    st.header("🤖 Task Recommendations")
+
+    # 1️⃣  load / cache engine
+    if "rec_engine" not in st.session_state:
+        st.session_state.rec_engine = RecommendationEngine(task_manager, goal_tracker)
+    rec_engine = st.session_state.rec_engine
+
+    # 2️⃣  model status + retrain button
+    model_exists = MODEL_PATH.exists()
+    last_trained = human_time(MODEL_PATH.stat().st_mtime) if model_exists else "never"
+    st.caption(f"ML model file: {'✅' if model_exists else '❌'}  (last trained: {last_trained})")
+
+    if st.button("♻️ Retrain completion model"):
+        with st.spinner("Training… this takes a few seconds"):
+            subprocess.run(["python", "scripts/train_completion_model.py"], check=True)
+        st.success("Retrain finished — reloading model")
+        # refresh engine so new .joblib is picked up
+        st.session_state.rec_engine = RecommendationEngine(task_manager, goal_tracker)
+        st.rerun()
+
+    # 3️⃣  sidebar settings specific to this tab
     with st.sidebar:
         st.subheader("🎛️ Recommendation Settings")
-        
-        # Adjust weights
-        perf_weight = st.slider("Performance Weight", 0.0, 1.0, 0.4, 0.1)
-        goal_weight = st.slider("Goal Progress Weight", 0.0, 1.0, 0.6, 0.1)
-        rec_engine.update_weights(perf_weight, goal_weight)
-        
-        # Daily target
-        daily_target = st.number_input("Daily Target Hours", 1.0, 12.0, 6.0, 8.0)
-        rec_engine.set_daily_target(daily_target)
-    
-    # Add categories to dataframe
-    df_with_categories = df.copy()
-    df_with_categories['category'] = df_with_categories.apply(
-        lambda row: category_mapper.map_entry_to_category(
-            project=row.get('project', ''), 
-            description=row.get('description', '')
-        ), axis=1
+        perf_w = st.slider("Performance Weight", 0.0, 1.0, 0.4, 0.1)
+        goal_w = st.slider("Goal Progress Weight", 0.0, 1.0, 0.6, 0.1)
+        rec_engine.update_weights(perf_w, goal_w)
+        target  = st.number_input("Daily Target Hours", 1.0, 12.0, 6.0, 0.5)
+        rec_engine.set_daily_target(target)
+
+    # 4️⃣  add categories to dataframe
+    df_cat = df.copy()
+    df_cat["category"] = df_cat.apply(
+        lambda r: category_mapper.map_entry_to_category(
+            project=r.get("project", ""), description=r.get("description", "")
+        ),
+        axis=1,
     )
-    
-    # Get recommendations
-    recommendations = rec_engine.get_top_recommendations(df_with_categories, limit=5)
-    
-    if not recommendations:
-        st.warning("No tasks available for recommendations. Add tasks in the Task Manager.")
+
+    # 5️⃣  get & display recommendations
+    recs = rec_engine.get_top_recommendations(df_cat, limit=5)
+    if not recs:
+        st.warning("No tasks to recommend. Add tasks in the Task Manager tab.")
         return
-    
-    # Display top recommendation prominently
+
     st.subheader("🎯 Recommended Next Task")
-    top_rec = recommendations[0]
-    
+    top = recs[0]
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.success(f"**{top_rec.task_name}**")
-        st.write(f"📂 Category: {top_rec.category}")
-        st.write(f"⭐ Priority Score: {top_rec.priority_score:.2f}")
-        st.write(f"💡 Why: {top_rec.reasoning}")
-    
+        st.success(f"**{top.task_name}**")
+        st.write(f"📂 Category: {top.category}")
+        st.write(f"⭐ Priority Score: {top.priority_score:.2f}")
+        st.write(f"💡 Why: {top.reasoning}")
     with col2:
-        difficulty_desc = task_manager.get_difficulty_description(top_rec.difficulty)
-        st.metric("Difficulty", difficulty_desc)
-        st.metric("Est. Duration", f"{top_rec.estimated_duration}h")
-    
-    # All recommendations
-    st.subheader("📋 All Recommendations")
-    
-    for i, rec in enumerate(recommendations):
-        with st.expander(f"{i+1}. {rec.task_name} (Score: {rec.priority_score:.2f})"):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.write(f"**Category:** {rec.category}")
-                st.write(f"**Reasoning:** {rec.reasoning}")
-            with col_b:
-                st.write(f"**Difficulty:** {task_manager.get_difficulty_description(rec.difficulty)}")
-                st.write(f"**Duration:** {rec.estimated_duration}h")
+        st.metric("Difficulty", task_manager.get_difficulty_description(top.difficulty))
+        st.metric("Est. Duration", f"{top.estimated_duration} h")
 
+    st.subheader("📋 All Recommendations")
+    for i, rec in enumerate(recs):
+        with st.expander(f"{i+1}. {rec.task_name}  (Score {rec.priority_score:.2f})"):
+            st.write(f"**Category:** {rec.category}")
+            st.write(f"**Difficulty:** {task_manager.get_difficulty_description(rec.difficulty)}")
+            st.write(f"**Duration:** {rec.estimated_duration} h")
+            st.write(f"**Reasoning:** {rec.reasoning}")
+
+# ──────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     main()

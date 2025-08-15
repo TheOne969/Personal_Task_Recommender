@@ -17,18 +17,20 @@ def load_entries(path=None):
         project_root = Path(__file__).parent.parent
         processed_dir = project_root / "data" / "processed"
         
-        csv_files= list(processed_dir.glob("*.csv"))
+        csv_files = [f for f in processed_dir.glob("*.csv") if f.name != "task_events.csv"]
+   
 
         if not csv_files: 
             raise FileNotFoundError(f"No CSV files found in {processed_dir}")
         
         
 
-    df_list   = [pd.read_csv(f, parse_dates=["start"]) for f in csv_files] # stop isn't needed for analysis as we already have duration
+    df_list   = [pd.read_csv(f, parse_dates=["start"],index_col=False,na_values=[],na_filter=False) for f in csv_files] # stop isn't needed for analysis as we already have duration.
+    # parse_dates is important because it's converting the string object into datetime.
 
-    df=  pd.concat(df_list, ignore_index=True)
-    df.drop_duplicates(subset="id", inplace=True)
-    df.sort_values("start", inplace=True)
+    df=  pd.concat(df_list, ignore_index=True) # We are using concat coz multiple dataframes coz different files collectively put together. Another way to do is to first gather all the entires in one file and read it once. 
+    df.drop_duplicates(subset="id", inplace=True) 
+    df.sort_values("start", inplace=True) # if we don't add inplace, then df will remain unchanged, as the new sorted object isn't being assigned to any variable, hence not manipulated. 
 
     if "duration_h" not in df.columns:
         print("!!! duration_h column missing - something's wrong")
