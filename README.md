@@ -55,7 +55,8 @@ without touching the Toggl API.
 ## Install & Run
 
 1. clone
-git clone https://github.com/TheOne969/Personal_Task_Recommender.git 
+
+    git clone https://github.com/TheOne969/Personal_Task_Recommender.git 
 
     cd Personal_Task_Recommender
 
@@ -153,11 +154,11 @@ git clone https://github.com/TheOne969/Personal_Task_Recommender.git
 4. **goals** ->  Live progress vs weekly targets from `goals.json`.
     `weekly_goals.py` manages this. 
 
-5. **📋 Task Mgr** -> CRUD UI for tasks stored in `tasks.json`. 
+5. **Task Mgr** -> CRUD UI for tasks stored in `tasks.json`. 
     `task_manager.py` manages this and `category_mapping.py` maps the task category to tasks. 
 
 
-6. **🤖 Recommendations** -> Ranked “what should I do next?” list with reasoning & one-click model retrain. 
+6. **Recommendations** -> Ranked “what should I do next?” list with reasoning & one-click model retrain. 
       `feature_engineering.py` + `ml_events.py` + `recommendation_engine.py` + `train_completion_model.py` does that. 
 
       The method used here is basically asking a small random forest classifier, “If you start this task now, how likely are you to finish the current sitting?”
