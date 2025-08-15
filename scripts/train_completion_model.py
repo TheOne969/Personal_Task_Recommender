@@ -7,9 +7,6 @@ import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
 
-from feature_engineering import toggl_df_to_events
-from task_manager import TaskManager
-from weekly_goals import WeeklyGoalTracker
 
 # ────────────────────────────────────────────────────────────
 DATA_DIR  = paths.data_dir / "processed"
@@ -39,6 +36,11 @@ def balance_classes(df):
 
 # ── main training routine ───────────────────────────────────
 def main():
+    # Importing now to avoid the API requirement at import time. 
+    from feature_engineering import toggl_df_to_events
+    from task_manager import TaskManager
+    from weekly_goals import WeeklyGoalTracker
+
     # 1  Load ONLY raw Toggl exports (exclude task_events.csv)
     csv_files = [f for f in DATA_DIR.glob("*.csv") if f.name != "task_events.csv"]
     df_list   = []

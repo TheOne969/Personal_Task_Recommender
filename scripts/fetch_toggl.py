@@ -13,10 +13,16 @@ SINCE = TODAY - dt.timedelta(days=7) # To get the date one week before.
 DATA_DIR=r"C:\Codes\Personal_Task_Recommender\data"
 RAW_DIR= os.path.join(DATA_DIR,"raw")
 PROCESSED_DIR= os.path.join(DATA_DIR,"processed")
-TOKEN= os.getenv("TOGGL_API_KEY")
 
-if not TOKEN:
-    raise ValueError("TOGGL_API_KEY not found in environment variables.")
+TOKEN= os.getenv("TOGGL_API_KEY")
+HAS_API= bool(TOKEN)
+
+def ensure_key_or_explain():
+    """Return True if API key is available, False otherwise"""
+    if not HAS_API:
+        print("No TOGGL_API_KEY found - running in offline mode")
+        return False
+    return True
 
 def daterange(start_date, end_date):
     """Generate all dates in range"""
@@ -88,6 +94,10 @@ def fetch_all_entries_with_pagination(start_date, end_date, max_entries_per_requ
     """
     Fetch all entries by automatically splitting date ranges when hitting limits
     """
+    if not ensure_key_or_explain():
+        return []
+    
+
     all_entries = []
 
     # Filtering out the dates already present in the RAW_DIR.

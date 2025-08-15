@@ -1,5 +1,4 @@
 .env
-*.json
 *.csv
 *.ipynb
 category_mapping.json

@@ -27,6 +27,13 @@ MODEL_PATH = paths.data_dir / "completion_model.joblib"   # ← NEW
 
 st.set_page_config(page_title="Time Usage Dashboard", layout="wide")
 
+# Check API availability. 
+HAS_TOGGL_API = bool(os.environ.get("TOGGL_API_KEY"))
+
+# Show offline mode notice
+if not HAS_TOGGL_API:
+    st.info("🔌 **Offline mode**: No TOGGL_API_KEY detected. Using local sample data only.")
+
 # ──────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
 def init_goal_system():
@@ -79,38 +86,42 @@ def main():
     
         # Add a fetch button to control when data is fetched as we don't want it to call that function every time apps refreshes(i.e, when interacts with user)
         if st.button("🔄 Fetch Data"):
-            if date1 <= date2:
-                with st.spinner("Fetching data..."):
-                    fetch_all_entries_with_pagination(date1, date2)
-                
-                # Process any new files
-                source_dir = Path(paths.data_dir) / "raw"
-                dest_dir = Path(paths.data_dir) / "processed"
-                
-                source_files = list(source_dir.iterdir())
-                dest_files = list(dest_dir.iterdir())
-                dest_file_names = {f.name for f in dest_files}
-                
-                processed_count = 0
-                for path in source_files:
-                    out = path.name.replace("raw_entries", "toggl_entries").replace(".json", ".csv")
+            if not HAS_TOGGL_API:
+                st.sidebar.warning("API key required for fetching")
+
+            else: 
+                if date1 <= date2:
+                    with st.spinner("Fetching data..."):
+                        fetch_all_entries_with_pagination(date1, date2)
                     
-                    if out not in dest_file_names:
-                        process_file(path)
-                        processed_count += 1
+                    # Process any new files
+                    source_dir = Path(paths.data_dir) / "raw"
+                    dest_dir = Path(paths.data_dir) / "processed"
+                    
+                    source_files = list(source_dir.iterdir())
+                    dest_files = list(dest_dir.iterdir())
+                    dest_file_names = {f.name for f in dest_files}
+                    
+                    processed_count = 0
+                    for path in source_files:
+                        out = path.name.replace("raw_entries", "toggl_entries").replace(".json", ".csv")
+                        
+                        if out not in dest_file_names:
+                            process_file(path)
+                            processed_count += 1
+                    
+                    # Clear the cache to force reload of data
+                    load.clear()  # Clear only the load() function's cache
+                    
+                    st.success(f"Data fetched from {date1} to {date2}")
+                    if processed_count > 0:
+                        st.info(f"Processed {processed_count} new files")
+                    
+                    # Force app rerun to reload data with fresh cache
+                    st.rerun()
                 
-                # Clear the cache to force reload of data
-                load.clear()  # Clear only the load() function's cache
-                
-                st.success(f"Data fetched from {date1} to {date2}")
-                if processed_count > 0:
-                    st.info(f"Processed {processed_count} new files")
-                
-                # Force app rerun to reload data with fresh cache
-                st.rerun()
-                
-            else:
-                st.error("Start date must be before or equal to end date!")
+                else:
+                    st.error("Start date must be before or equal to end date!")
         
         
         
