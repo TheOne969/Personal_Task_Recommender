@@ -1,0 +1,71 @@
+{
+  "available_tasks": {
+    "Article Draft": {
+      "category": "Writing",
+      "difficulty": 3,
+      "estimated_duration": 1.5
+    },
+    "Blog Edit": {
+      "category": "Writing",
+      "difficulty": 2,
+      "estimated_duration": 0.5
+    },
+    "Feature Dev": {
+      "category": "Coding",
+      "difficulty": 4,
+      "estimated_duration": 2.0
+    },
+    "Bug Fix": {
+      "category": "Coding",
+      "difficulty": 3,
+      "estimated_duration": 1.0
+    },
+    "Algo Practice": {
+      "category": "Study",
+      "difficulty": 3,
+      "estimated_duration": 1.0
+    },
+    "Concept Review": {
+      "category": "Study",
+      "difficulty": 2,
+      "estimated_duration": 0.75
+    },
+    "Exam Prep": {
+      "category": "Study",
+      "difficulty": 4,
+      "estimated_duration": 1.5
+    },
+    "Meditation": {
+      "category": "Wellness",
+      "difficulty": 1,
+      "estimated_duration": 0.25
+    },
+    "Stretching": {
+      "category": "Wellness",
+      "difficulty": 1,
+      "estimated_duration": 0.25
+    },
+    "Typing Practice": {
+      "category": "Wellness",
+      "difficulty": 2,
+      "estimated_duration": 0.25
+    },
+    "Inbox Zero": {
+      "category": "Admin",
+      "difficulty": 2,
+      "estimated_duration": 0.5
+    },
+    "Planning": {
+      "category": "Admin",
+      "difficulty": 2,
+      "estimated_duration": 0.5
+    }
+  },
+  "difficulty_levels": {
+    "1": "Very Easy",
+    "2": "Easy",
+    "3": "Medium",
+    "4": "Hard",
+    "5": "Very Hard"
+  }
+}

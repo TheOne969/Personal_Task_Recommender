@@ -1,0 +1,34 @@
+{
+    "categories": {
+        "Writing": [
+            "Article Draft",
+            "Blog Edit"
+            
+        ],
+        "Coding": [
+            "Feature Dev",
+            "Bug Fix"
+        ],
+        "Study": [
+            "Algo Practice",
+            "Concept Review",
+            "Exam Prep"
+        ],
+        "Wellness": [
+            "Meditation",
+            "Stretching",
+            "Typing Practice"
+        ],
+        "Admin": [
+            "Inbox Zero",
+            "Planning"
+        ]
+    },
+    "keywords": {},
+    "project_fallback": {
+        "Wellness Proj": "Wellness",
+        "Setup": "Admin",
+        "Relax": "Wellness"
+    },
+    "default_category": "Other"
+}
