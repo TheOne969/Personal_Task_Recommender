@@ -67,7 +67,29 @@ git clone https://github.com/TheOne969/Personal_Task_Recommender.git
     
     export TOGGL_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-4. start dashboard
+4. Create a .env file
+
+    If you did the above, then add it in this file. Apart from that, add the following variables and their paths accordingly. 
+
+    ```
+    TOGGL_API_KEY=
+        
+    DATA_DIR=C:\Codes\Personal_Task_Recommender\data
+    SCRIPTS_DIR=C:\Codes\Personal_Task_Recommender\scripts
+    UI_DIR=C:\Codes\Personal_Task_Recommender\ui
+    CONFIGS_DIR=C:\Codes\Personal_Task_Recommender\configs
+
+    
+    CONFIG_FILE=C:\Codes\Personal_Task_Recommender\configs\config.json
+    GOALS_FILE=C:\Codes\Personal_Task_Recommender\configs\goals.json
+    TASKS_FILE=C:\Codes\Personal_Task_Recommender\configs\tasks.json
+    CATEGORY_MAPPING_FILE=C:\Codes\Personal_Task_Recommender\configs\category_mapping.json
+
+
+    ```
+
+
+5. start dashboard
 
     streamlit run ui/streamlit_app.py 
     
